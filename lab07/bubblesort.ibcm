@@ -1,0 +1,65 @@
+C00B 00		jmp 	start 	skip the variables
+0000 01	i 	dw 	0 	int i
+0000 02	j 	dw 	0 	int j
+0038 03	addr 	dw 	0 	array starts at 38, after the program halts
+0009 04	size 	dw 	9	size of the arry is 9
+0000 05	zero 	dw 	0
+0001 06	one 	dw 	1
+0000 07 aj	dw	0	var for a[j]
+0000 08 aj-1	dw	0	var for a[j-1]
+3000 09 ld	dw	load
+4000 0A sto	dw	store
+3005 0B start	load 	zero 	Start. set i = 0
+4001 0C 	store 	i
+3004 0D oloop	load 	size	outer loop: if size-i <= 0, xit
+6001 0E 	sub 	i
+E037 0F 	jmpl 	xit
+D037 10 	jmpe 	xit
+3004 11		load	size	set j = size-1
+6006 12		sub	one
+4002 13		store	j
+3002 14	iloop	load	j	inner loop: if j-i <= 0, i++ and oloop
+6001 15		sub	i
+E033 16 	jmpl 	incr i
+D033 17 	jmpe 	incr i
+3009 18 	load 	ld 	form the instruction to load a[j]
+5003 19 	add 	addr
+5002 1A 	add 	j
+4024 1B		store	l a[j]	l a[j] = load a[j]
+6006 1C		sub	1	form the instruction to load a[j-1]
+4026 1D		store	l [j-1]	l [j-1] = load a[j-1]
+300A 1E 	load 	sto 	form the instruction to store something (aj-1) in a[j]
+5003 1F 	add 	addr
+5002 20 	add 	j
+402E 21		store	s a[j]	s a[j] = store something in a[j]
+6006 22		sub	one	form the instruction to store something (aj) in a[j-1]
+402C 23		store	s [j-1]	s [j-1] = store something in a[j-1]
+0000 24	l a[j]	load	a[j]
+4007 25		store	aj	aj = a[j]
+0000 26	l [j-1]	load	a[j-1]
+4008 27		store	aj-1	aj-1 = a[j-1]
+6007 28		sub	aj	if a[j-1]-aj <= 0, j-- and redo iloop
+E02F 29 	jmpl 	dec j
+D02F 2A 	jmpe 	dec j
+3007 2B		load	aj
+0000 2C	s [j-1]	store	a[j-1]	store aj in a[j-1]
+3008 2D		load	aj-1
+0000 2E	s a[j]	store	a[j]	store aj-1 in a[j]
+3002 2F	dec j	load	j	j-- and redo iloop
+6006 30		sub	one
+4002 31		store	j
+C014 32		jmp	iloop
+3001 33	incr i	load	i	i++ and redo oloop
+5006 34		add	1
+4001 35		store	i
+C00D 36		jmp	oloop
+0000 37 xit 	halt		End program
+4234 38	Array Start
+DF08 39 1
+0007 3A 2
+E076 3B 3
+0005 3C 4
+00BB 3D 5
+000A 3E 6
+0002 3F 7
+0010 40 8

@@ -1,0 +1,25 @@
+CXX	= g++
+
+CXXFLAGS	= -S -m32 -masm=intel
+
+AS	= nasm
+
+ASFLAGS	= -felf
+
+OFILES	= testlib.o tester.o
+
+.SUFFIXES: .o .cpp
+
+.SUFFIXES: .o .s
+
+main:	$(OFILES)
+	$(CXX) $(CXXFLAGS) -o teste $(OFILES)
+
+# This will clean up (remove) all our object files.  The -f option
+# tells rm to forcily remove the files (i.e. don't ask if they should
+# be removed or not).  This removes object files (*.o) and Emacs
+# backup files (*~)
+clean:
+	/bin/rm -f *.o *~
+
+# We don't have any dependencies for this small program

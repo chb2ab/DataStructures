@@ -1,0 +1,21 @@
+#chb2ab, Crispin Bernier, lab05
+
+CXX=clang++
+CXXFLAGS=-O2 -Wall
+OFILES=hashtableprob.cpp wordPuzzle.cpp timer.cpp avltree.cpp
+.SUFFIXES: .o .cpp
+
+make2: $(OFILES)
+	$(CXX) $(CXXFLAGS) $(OFILES)
+
+clean:
+	-rm *.o *~
+
+avltree.o: avltree.cpp avltree.h avlnode.h
+getWordInTable.o: getWordInTable.cpp
+hashTable.o: hashTable.cpp hashTable.h avltree.h avlnode.h
+primenumber.o: primenumber.cpp
+timer.o: timer.cpp timer.h
+timer_test.o: timer_test.cpp timer.h
+wordPuzzle.o: wordPuzzle.cpp hashTable.h avltree.h avlnode.h timer.h
+

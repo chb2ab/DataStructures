@@ -1,0 +1,35 @@
+C00A 00		jmp 	start 	skip the variables
+0000 01	i 	dw 	0 	int i
+0000 02	max 	dw 	0 	int max
+0000 03	addr 	dw 	0 	array starts at 0
+0023 04	size 	dw 	22	size of the program
+0000 05	zero 	dw 	0
+0001 06	one 	dw 	1
+0000 07 	 	
+3000 08 transf	dw	load
+0000 09
+3005 0A start	load 	zero 	i = 0; max = 0;
+4001 0B 	store 	i
+4002 0C 	store 	max
+3004 0D loop 	load 	size 	if (i >= size) goto xit
+6001 0E 	sub 	i
+E020 0F 	jmpl 	xit
+D020 10 	jmpe 	xit
+3008 11 	load 	transf 	form the instruction to load a[i]
+5003 12 	add 	addr
+5001 13 	add 	i
+4019 14 	store 	doit 	plant the instruction into doit
+401D 15 	store 	switch 	plant the instruction into switch
+3001 16 	load 	i 	i += 1
+5006 17 	add 	one
+4001 18 	store 	i
+0000 19 doit	load 	a[i]
+E00D 1A 	jmpl	loop	if (a[i]<0) redo loop
+6002 1B 	subt	max	a[i]-max
+E00D 1C 	jmpl	loop	if (a[i]-max<0) redo loop
+0000 1D switch	load	a[i]	if a[i]-max>=0, set max=a[i]
+4002 1E		store	max	
+C00D 1F 	jmp	loop	redo loop
+3002 20 xit 	load 	max 	print max
+1800 21 	printH
+0000 22 	halt

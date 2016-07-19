@@ -1,0 +1,177 @@
+Optimized Code
+	The optimized code in all of the following examples is done using the -O2 flag. When optimizing code, x86 uses many different optimization techniques. One technique x86 uses is ignoring the calling convention when possible. For example, the following code is an empty main function:
+
+int  main () {
+    return 0;
+}
+
+	The unoptimized x86 code looks like this:
+
+main:
+	push	ebp		; saving base pointer
+	mov	ebp, esp	; setting base pointer as stack pointer
+	mov	eax, 0		; set eax = 0
+	pop	ebp		; restore base pointer
+	ret			; return
+
+	x86 saves ebp and sets ebp as the stack pointer even though the stack is never used. x86 does this because using the base pointer as the stack pointer is part of the calling convention for the callee, and even though it isn't necessary the unoptimized code will adhere to this calling convention. Conversely the optimized code for the same program will look like this:
+
+main:
+	xor	eax, eax	; set eax = 0
+	ret			; return
+
+	The optimized code uses far fewer commands and ignores the calling convention that the unoptimized code adheres to. Both versions set the return value eax to 0, but the optimized version does it much faster.
+
+	x86 will also optimize loops. Take the following c++ code as an example, which creates an array of 100 ints set at 0 through 99:
+
+int  main () {
+    int z [100];
+    for (int x = 0; x < 100; x++)
+        z[x] = x;
+    cout << z << endl;
+    return 0;
+}
+
+	The c++ code looping through the array and setting the values generates the following unoptimized x86 code:
+
+	mov	DWORD PTR [esp+428], 0		; set [esp+428] = x = 0
+	jmp	.L2				; go to L2, START ARRAY LOOP
+.L3:
+	mov	eax, DWORD PTR [esp+428]	; store x in eax
+	mov	edx, DWORD PTR [esp+428]	; store x in edx
+	mov	DWORD PTR [esp+28+eax*4], edx	; esp+28 is the start of the array, this command moves x to the xth element in the array
+	add	DWORD PTR [esp+428], 1		; add 1 to x
+.L2:
+	cmp	DWORD PTR [esp+428], 99		; compare x to 99
+	setle	al				; more comparisons
+	test	al, al				; more comparisons
+	jne	.L3				; if x != 99 redo loop or END OF LOOP
+	lea	eax, [esp+28]			; not part of the loop
+
+	The optimized version of this loop looks like this:
+
+	xor	eax, eax			; eax = x, this command sets x = 0
+	...					; clearing space for local variables not shown
+	lea	edx, [esp+16]			; esp+16 is the start of the array, this command sets edx as the start of the array, and STARTS ARRAY LOOP
+.L2:
+	mov	DWORD PTR [edx+eax*4], eax	; store x in the xth element of the array
+	add	eax, 1				; add 1 to x
+	cmp	eax, 100			; if eax != 100 redo loop
+	jne	.L2				; redo loop or END OF LOOP
+	mov	DWORD PTR [esp+4], edx		; not part of the loop
+
+	There are many differences in the optimized and unoptimized versions of the x86 code. One obvious differene is the number of commands used, the optimized code uses far less commands then the unoptimized code to perform the same loop. Another difference is in what is used for the variable x. The unoptimized version uses the memory location at [esp+428] for the variable x, whereas the optimized version uses the register eax for the variable x. The optimized code does this because operating with a register is faster than using a memory address. The optimized code also uses eax for two functions. It uses eax to calculate the memory address of the next index in the array, and also as the number to put in that array. The unoptimized code stores x, which is at [esp+428], in eax to calculate the memory address of the index for insertion, and in edx to insert the value at that index. The optimized code also stores the memory address for the start of the array, [esp+16], in a register, edx. This makes offsetting from the start of the array to get to the desired index a faster operation. In the unoptimized code the command is [esp+28+eax*4] to get the desired index, whereas in the optimized code the command is [edx+eax*4], which you can see does not need to add a constant and will run faster. Finally, the optimized code uses only one comparsion, cmp, whereas the unoptimized code uses two comparisions, cmp and test.
+
+Dynamic Dispatch
+	Dynamic dispatch occurs when a program must decide on runtime what method to invoke. For example, the following C++ code implements two classes, A and B:
+
+class A {
+    public:
+    virtual void print(){
+        cout << "A" << endl;
+    }
+
+    virtual char give(int x){
+        char y = x+96;
+        return y;
+    }
+
+};
+
+class B : public A {
+    public:
+    virtual void print(){
+        cout << "B" << endl;
+    }
+
+    virtual char give(int x){
+        char y = x;
+        return y;
+    }
+};
+
+	In this example, B inherits from A and we can see both A and B have two virtual functions of the same name with the same paramaters. The virtual keyword allows the derived class, which is B in this example, to replace the implementation provided by the base class, which is A. So whenever the print or give function shown in this example is called on an object of class B, the class B version of that function will be called. This happens even if the pointer to the object is of class A (2).
+http://www.parashift.com/c++-faq-lite/overview-virtual-fns.html
+
+	The following main method gives an example of dynamic dispatch:
+
+int  main () {
+    int r = rand() % 2;
+    A *bar;
+    if ( r )
+        bar = new A();
+    else
+        bar = new B();
+    bar->print();
+    char b = bar->give(5);
+    return 0;
+}
+
+	In the above main method, it is impossible to know beforehand what object bar will be and what version of print and give to call on bar. Depending on the random integer r, bar could either be an object A or an object B. Accounting for both versions of print and give in a situation like this is where dynamic dispatch comes in. At the assembly level, the x86 code will look like this:
+
+cmp	DWORD PTR [esp+28], 0		; the if statement, r is stored in esp+28 and we compare r to 0
+	je	.L6			; if r = 0 jump to .L6, else continie
+	mov	DWORD PTR [esp], 4	; begin constructing an object A
+	call	_Znwj			; constructing object A
+	mov	ebx, eax		; constructing object A
+	mov	DWORD PTR [ebx], 0	; constructing object A
+	mov	DWORD PTR [esp], ebx	; constructing object A
+	call	_ZN1AC1Ev		; constructing object A
+	mov	DWORD PTR [esp+24], ebx	; finished constructing, pointer stored in esp+24
+	jmp	.L7			; skip the .L6 section
+.L6:
+	mov	DWORD PTR [esp], 4	; begin constructing an object B
+	call	_Znwj			; constructing object B
+	mov	ebx, eax		; constructing object B
+	mov	DWORD PTR [ebx], 0	; constructing object B
+	mov	DWORD PTR [esp], ebx	; constructing object B
+	call	_ZN1BC1Ev		; constructing object B
+	mov	DWORD PTR [esp+24], ebx	; finished constructing, pointer stored in esp+24
+.L7:
+	mov	eax, DWORD PTR [esp+24]	; put the pointer for the object in eax
+	mov	eax, DWORD PTR [eax]	; 
+	mov	edx, DWORD PTR [eax]	;
+	mov	eax, DWORD PTR [esp+24]	; put the pointer for the object in eax
+	mov	DWORD PTR [esp], eax	; push the object on the stack as a paramater
+	call	edx			; calls the print method for the appropriate object
+
+	As the above assembly code shows, dynamic dispatch is implemented by breaking 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

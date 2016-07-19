@@ -1,0 +1,143 @@
+Paramater Passing
+
+*** add comments to assembly ***
+
+	When an int variable is passed into a function, the variable is first moved to eax, and then from eax to esp, otherwise known as the top of the stack. This is done for each variable passed into the function from last to first. Below is an example function that takes in three ints, a, b, and c.
+
+extern "C" int test (int, int, int);
+test (a,b,c);
+
+	This function will generate the following assembly code, where [esp+28]=c, [esp+24]=b, and [esp+20]=a
+
+	mov	eax, DWORD PTR [esp+28]	; store int c in eax
+	mov	DWORD PTR [esp+8], eax	; c is placed in the stack
+	mov	eax, DWORD PTR [esp+24]	; store int b in eax
+	mov	DWORD PTR [esp+4], eax	; b is placed in front of c in the stack
+	mov	eax, DWORD PTR [esp+20]	; store int a in eax
+	mov	DWORD PTR [esp], eax	; a is placed at the very front of the stack
+	call	test			; call the function
+
+	The assembly code allocates 12 bytes to the stack to store the 3 int parameters, which are 4 bytes each. As shown above, c is stored in esp+8, which leaves enough space for the other 2 ints to be stored in esp+4 and esp. This section of assembly code where the parameters are passed into the function will look the same if the int parameters are exchanged with floats because they are the same 4 bytes in size. This assembly code will also look the same for pointers and passes by reference as they are all 4 bytes in memory. The only thing that may change, due to added variables, is the location a, b, and c are located.
+
+	For a function:
+
+extern "C" int test (char, char, char);
+test (a,b,c);
+
+	where a, b, and c are char values, The assembly code will look like this.
+
+	movsx	ecx, BYTE PTR [esp+31]	; store char c in ecx
+	movsx	edx, BYTE PTR [esp+30]	; store char b in edx
+	movsx	eax, BYTE PTR [esp+29]	; store char a in eax
+	mov	DWORD PTR [esp+8], ecx	; c is placed on the stack
+	mov	DWORD PTR [esp+4], edx	; b is placed in front of c
+	mov	DWORD PTR [esp], eax	; a is placed in front of b
+	call	test			; call the function
+
+	Here [esp+31] = c, [esp+30] = b, and [esp+29]  = a. Again the assembly code allocates 12 bytes to the stack to store the 3 char parameters, even though char variables are only 1 byte each. As opposed to passing int parameters, where the ints were all passed through eax, the assembly code uses ecx, edx, and eax to pass in the parameters to the stack. The order on the stack is the same as before, with c being inserted first, b inserted in front of c, and a inserted at the very front.
+
+	For a function:
+
+extern "C" int test (Computer, Computer, Computer);
+test (a,b,c);
+
+	where a, b, and c are a user defined Computer class that has 3 int variables, The assembly code will look like this.
+
+	lea	eax, [esp+84]		; store computer c in eax
+	mov	DWORD PTR [esp+8], eax	; c is placed on the stack
+	lea	eax, [esp+72]		; store computer b in eax
+	mov	DWORD PTR [esp+4], eax	; b is placed on the stack
+	lea	eax, [esp+60]		; store computer a in eax
+	mov	DWORD PTR [esp], eax	; a is placed on the stack
+.LEHB0:
+	call	test			; call the function
+
+	This is similar to the first example where we passed in 3 ints, however here the Computer variables are passed into eax using the lea (load effective address) command (1), and also the addresses of the Computer variables at 84, 72, and 60 are much further down the stack then the ints were. The stack still only needs 12 bytes of space to store these 3 variables, and the order on the stack is the same as before.
+
+	For a function:
+
+extern "C" int test (int[], int[], int[]);
+test (a,b,c);
+
+	where a, b, and c are integer arrays of sizes 4, 3, and 2 respectively, The assembly code will look like this.
+
+	lea	eax, [esp+56]		; store int array c in eax
+	mov	DWORD PTR [esp+8], eax	; put c on the stack
+	lea	eax, [esp+44]		; store int array b in eax
+	mov	DWORD PTR [esp+4], eax	; put b on the stack in front of c
+	lea	eax, [esp+28]		; store int array a in eax
+	mov	DWORD PTR [esp], eax	; put a on the stack in front of b
+	call	test			; call the function
+
+	This is similar to passing in a user defined class because the assembly code loads the effective address of the array using the lea command. The order the arrays are passed to the stack is the same as with ints, with c being loaded to the stack first, then b in front of c, and a at the front of the stack. The stack only needs to be 12 bytes in size to hold the 3 array addresses.
+
+Objects
+
+	To store data in C++, the first thing the assembler does after saving the base pointer is to perform a logical and operation on esp and -16. -16 in twos complement hexadecimal is 0xff...fff0, so this and operation sets the last byte of esp to zero. The assembler then subtracts the necessary space needed for local variables. The value subtracted is a multiple of 16, so 16, 32, 48 ect. The variables are then stored in this space with the first variable at the front of the stack, as shown in the following assembly code snippet generated from the following C++ code.
+
+extern "C" int test (int, int, int);
+
+int  main () {
+    int a = 1;
+    int b = 2;
+    int c = 3;
+    test (a, b, c);
+    return 0;
+}
+
+	and	esp, -16		; Set last hex digit to 0
+	sub	esp, 32			; Subtract 0x20
+	mov	DWORD PTR [esp+20], 1	; store a at the front of the stack
+	mov	DWORD PTR [esp+24], 2	; store b in the middle
+	mov	DWORD PTR [esp+28], 3	; store c at the top of the stack
+
+	To access data members, assembly uses the address of the variable. An example of this was when we were passing in paramaters to a function. To access the variable being passed in the assembly, the command:
+
+	mov	eax, DWORD PTR [esp+x]
+
+	was frequently called, where x is the offset from esp where the variable is located. What the DWORD PTR does is tells assembly to move the 32 bit representation of the address into the eax register (1). The address of this variable, now stored in eax, can be passed to the stack or wherever it needs to go.
+
+	To invoke a method of a class, assembly first pushes the paramaters onto the stack in reverse order. Then assembly pushes the object onto the stack, and finally assembly calls the function. Assembly knows which class the method belongs to because the object is on the stack. Here is an example of code that calls a function, where laptop is a user defined class with a function incs1.
+
+int  main () {
+    Laptop *a = new Laptop();
+    a->incs1(614, 1232);
+    return 0;
+}
+
+	mov	DWORD PTR [esp+8], 1232	; assembly pushes the second parameter to the stack
+	mov	DWORD PTR [esp+4], 614 ; the first parameter is put in front of the second on the stack
+	mov	eax, DWORD PTR [esp+20] ; the laptop object that was created at address esp+20 is placed in eax
+	mov	DWORD PTR [esp], eax ; the laptop object is put at the front of the stack
+	call	_ZN8Computer5incs1Ei ; the method incs1 is called for the laptop class
+
+	To store data in a class, the stack allocates memory in the main section of the assembly code and places pointers to the values on the stack, then uses a pointer to the bottom address of the class to refer to it similar to an array. These pointers are 4 bytes apart, so even if there is a seperate class data member the pointer stored in the class will only be 4 bytes. The assembly code doesn't differentiate between private and public values, this is done by the compiler.
+
+	To access a member function the assembly code treats it the same way as calling a method. Assembly pushes the parameters onto the stack then calls the member function. The only differences when calling a method or a function of a class is the parameters pushed onto the stack. When calling a function the last paramater pushed onto the stack is the class of the object the function is being called on. This is shown in the assembly code with the laptop example.
+
+	Public member functions are accessed by passing the paramaters to the stack and then passing the class of the object, known as the "this" pointer. This pointer is saved on the stack when the object is first created as is shown in the following assembly code.
+
+	mov	DWORD PTR [esp], 24	; Push 24 to the stack
+	call	_Znwj			; Create a new object
+	mov	ebx, eax		; put the new object in ebx
+	mov	DWORD PTR [esp], ebx	; push this object to the stack
+	call	_ZN6LaptopC1Ev		; call the labtop constructor to create this object
+	mov	DWORD PTR [esp+24], ebx	; store this objects "this" pointer on the stack
+
+1. http://www.cs.virginia.edu/~evans/cs216/guides/x86.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
